@@ -1,29 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Secure Doc Share</title>
+    <meta charset="UTF-8">
+    <title>Login - Secure Doc Share</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <h1>Register</h1>
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="registerUser()">Sign Up</button>
+    <h1>System Login</h1>
+    <div id="login-form">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="loginUser()">Log In</button>
+        <hr>
+        <p style="text-align: center; margin-bottom: 10px;">Don't have an account?</p>
+        <button onclick="goToRegister()" style="display: block; margin: 0 auto; width: auto;">Register</button>
+    </div>
 
-    <script>
-        async function registerUser() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
-
-            const response = await fetch('http://127.0.0.1:5000/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: user, password: pass })
-            });
-
-            const result = await response.json();
-            alert(result.message);
-        }
-    </script>
+    <script src= "../static/js/login.js"> </script>
 </body>
 </html>

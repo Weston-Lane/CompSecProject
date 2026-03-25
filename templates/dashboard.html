@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Secure Doc Share</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Secure Document Dashboard</h1>
+        <button onclick="logout()">Logout</button>
+    </header>
+
+    <main>
+        <section id="upload-section">
+            <h2>Upload a Document</h2>
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Secure Upload</button>
+        </section>
+
+        <hr>
+
+        <section id="library-section">
+            <h2>My Documents</h2>
+            <ul id="document-list">
+                </ul>
+        </section>
+    </main>
+
+    <script>
+        // 1. Security Check: Run immediately when the page loads
+        window.onload = function() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                // Kick unauthorized users back to login
+                window.location.href = '/'; 
+                return;
+            }
+            // If token exists, load the user's files
+            loadDocuments();
+        };
+
+        // 2. Fetch documents from the Python backend
+        async function loadDocuments() {
+            const token = localStorage.getItem('jwt_token');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/documents', {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    const docs = await response.json();
+                    displayDocuments(docs);
+                } else if (response.status === 401) {
+                    // Token expired or invalid
+                    logout();
+                }
+            } catch (error) {
+                console.error("Failed to fetch documents", error);
+            }
+        }
+
+        // 3. Render the documents in the HTML
+        function displayDocuments(docs) {
+            const list = document.getElementById('document-list');
+            list.innerHTML = ''; // Clear loading text
+            
+            docs.forEach(doc => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <strong>${doc.original_filename}</strong> 
+                    (Role: ${doc.role})
+                    <button onclick="downloadFile('${doc.doc_id}')">Download</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // 4. Session Management
+        function logout() {
+            localStorage.removeItem('jwt_token');
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

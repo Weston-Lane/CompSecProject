@@ -1,6 +1,7 @@
 [
     {
-        "username": "hello",
-        "password": "$2b$12$1S6.2EpZjIDyr7IPAtxv/OTYIC4RsDs/TbZ4lCfFwA3T7ip6D84Eu"
+        "username": "hi",
+        "password": "$2b$12$ihO7gO7UUeJtwaD0sBeCYO7v5mu/6aCONvaii7/ktfTRzQTVkb1mu",
+        "role": "user"
     }
 ]
