@@ -1,9 +1,18 @@
 # CompSecProject
 
-##Dependedncies
--Create venv if not done already
+## Dependencies
+
+* **Create a virtual environment** (if not done already):
+    ```bash
     python -m venv venv
--Activate venv
+    ```
+
+* **Activate the virtual environment**:
+    ```bash
     venv\Scripts\activate
--Install requirements
+    ```
+
+* **Install requirements**:
+    ```bash
     pip install -r requirements.txt
+    ```
