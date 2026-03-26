@@ -100,7 +100,7 @@ def LoginUser(data):
             case ValidationStatus.PASS_NOT_MATCH:
                 return jsonify({"status": "error", "message": "Invalid Username or Password"}), 401
         
-    return jsonify({"status": "success", "message": "Succesful Login"}), 400
+    return jsonify({"status": "success", "message": "Succesful Login"}), 200
             
 
 def ValidateCredentials(userInfo):

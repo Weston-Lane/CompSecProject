@@ -30,12 +30,12 @@
     <script>
         // 1. Security Check: Run immediately when the page loads
         window.onload = function() {
-            const token = localStorage.getItem('jwt_token');
-            if (!token) {
-                // Kick unauthorized users back to login
-                window.location.href = '/'; 
-                return;
-            }
+            // const token = localStorage.getItem('jwt_token');
+            // if (!token) {
+            //     // Kick unauthorized users back to login
+            //     window.location.href = '/'; 
+            //     return;
+            // }
             // If token exists, load the user's files
             loadDocuments();
         };

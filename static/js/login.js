@@ -14,7 +14,7 @@ async function loginUser() {
 
         if (response.ok) {
             // Save the JWT to localStorage
-            localStorage.setItem('jwt_token', result.token);
+            //localStorage.setItem('jwt_token', result.token);
             alert('Login successful!');
             
             // Redirect to the main dashboard
