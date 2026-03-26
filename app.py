@@ -1,39 +1,23 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS # Allows your frontend to talk to the backend
 import bcrypt
-import json
-import os
+import jsonUtils
 
 app = Flask(__name__)
 CORS(app) # Prevents "Cross-Origin" errors during local development
-
-# Helper to read/write your JSON "Database"
-def read_json(filename):
-    path = f'data/{filename}.json'
-    if not os.path.exists(path):
-        return [] # Return empty list if file doesn't exist yet
-    with open(path, 'r') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return [] # Return empty list if file is empty/corrupt
-
-def write_json(filename, data):
-    with open(f'data/{filename}.json', 'w') as f:
-        json.dump(data, f, indent=4)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/api/register', methods=['POST'])
-def register():
+def registerUser():
     data = request.json
     username = data.get('username')
     password = data.get('password').encode('utf-8')
     
     # 1. Load existing users
-    users = read_json('users')
+    users = jsonUtils.read_json('users')
     
     # 2. Security Check: Does user already exist?
     if any(u['username'] == username for u in users):
@@ -51,7 +35,7 @@ def register():
     users.append(new_user)
     
     # 5. Save the full list back to the file
-    write_json('users', users) 
+    jsonUtils.write_json('users', users) 
 
     return jsonify({"status": "success", "message": "Account Registered"}), 400
 
@@ -68,7 +52,7 @@ def login():
     username = data.get('username')
     password = data.get('password').encode('utf-8')
     
-    users = read_json('users')
+    users = jsonUtils.read_json('users')
     
     # 1. Find the user in the database
     user = next((u for u in users if u['username'] == username), None)
