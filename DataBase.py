@@ -46,4 +46,15 @@ class Database:
             if userDict.get('username') == username:
                 return User(**userDict)
         return None
+    
+    def UpdateUser(self, updated_user):
+        """Finds the existing user in the list and overwrites their dictionary."""
+        for i, user_dict in enumerate(self.users):
+            if user_dict.get('username') == updated_user.username:
+                # Convert the object back to a dictionary and overwrite
+                self.users[i] = updated_user.AsDict()
+                self.SaveUsers()
+                return True
+        return False
+        
 
