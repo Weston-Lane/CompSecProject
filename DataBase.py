@@ -31,19 +31,30 @@ class Database:
         self.accessLog = self._load(self.accessLogPath)
         self.securityLog = self._load(self.securityLogPath)
 
-    def _load(self, path):
+    def _load(self, path: str):
         return jsonUtils.read_json(path)
 
     def SaveUsers(self):
         jsonUtils.write_json(self.usersFilePath, self.users)
     
-    def AddUser(self, user):
+    def AddUser(self, user: User):
         userDict = user.AsDict()
         self.users.append(userDict)
 
-    def FindUser(self, username):
+    def FindUser(self, username: str):
         for userDict in self.users:
             if userDict.get('username') == username:
                 return User(**userDict)
         return None
+    
+    def UpdateUser(self, updated_user: User):
+        """Finds the existing user in the list and overwrites their dictionary."""
+        for i, user_dict in enumerate(self.users):
+            if user_dict.get('username') == updated_user.username:
+                # Convert the object back to a dictionary and overwrite
+                self.users[i] = updated_user.AsDict()
+                self.SaveUsers()
+                return True
+        return False
+        
 
