@@ -5,8 +5,8 @@
         "password_hash": "$2b$12$D2Cz1KqWzVquDM/n.FpI2uTEPyhjXqr/E4fhmNmdP.lGj5INWmlUK",
         "created_at": 1774548290.742945,
         "role": "user",
-        "failed_attempts": 0,
-        "locked_until": null
+        "failed_attempts": 5,
+        "locked_until": 1774572725.6173003
     },
     {
         "username": "hhhg",
@@ -16,6 +16,14 @@
         "role": "user",
         "failed_attempts": 0,
         "locked_until": null
+    },
+    {
+        "username": "admin",
+        "email": "admin@admin.com",
+        "password_hash": "$2b$12$6onIx6lXQuoCJ8BrGbqW8eEyGpYE4aIMfXGgxHU6kE0EvYUCRpsBu",
+        "created_at": 1774572551.5272982,
+        "role": "admin",
+        "failed_attempts": 0,
+        "locked_until": null
     }
-
 ]

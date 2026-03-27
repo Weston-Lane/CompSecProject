@@ -3,9 +3,12 @@ import bcrypt
 import jsonUtils
 from User import User
 import re
+import time
 from enum import Enum
 from Database import Database
 
+LOCK_OUT_TIME = 900 #15min
+LOGIN_ATTEMPTS_MAX = 5
 class ValidationStatus(Enum):
     VALID = 0
     INVALID_USER_INPUT = 1
@@ -13,6 +16,7 @@ class ValidationStatus(Enum):
     INVALID_EMAIL_INPUT = 3
     PASS_NOT_MATCH = 4
     ALREADY_EXISTS = 5
+    TOO_MANY_ATTEMPTS = 6
 
 def registerUser(data):
     userInfo = {
@@ -99,6 +103,8 @@ def LoginUser(data):
                 return jsonify({"status": "error", "message": "Invalid Username or Password"}), 401
             case ValidationStatus.PASS_NOT_MATCH:
                 return jsonify({"status": "error", "message": "Invalid Username or Password"}), 401
+            case ValidationStatus.TOO_MANY_ATTEMPTS:
+                return jsonify({"status": "error", "message": "Too many attempts, lockout"}), 403
         
     return jsonify({"status": "success", "message": "Succesful Login"}), 200
             
@@ -109,10 +115,27 @@ def ValidateCredentials(userInfo):
     if user is None:
         return ValidationStatus.INVALID_USER_INPUT
     
+    if user.locked_until is not None:
+        if time.time() < user.locked_until:
+            return ValidationStatus.TOO_MANY_ATTEMPTS
+        else:
+            user.locked_until = None
+            user.failed_attempts = 0
+        
     inputPass = userInfo.get('password').encode("utf-8")
     storedHash = user.password_hash.encode('utf-8')
     if not bcrypt.checkpw(inputPass, storedHash):
+        user.failed_attempts += 1
+        if user.failed_attempts >= LOGIN_ATTEMPTS_MAX:
+            user.locked_until = time.time() + LOCK_OUT_TIME
+
+        db.UpdateUser(user)    
         return ValidationStatus.PASS_NOT_MATCH
     
+    if user.failed_attempts > 0:
+        user.failed_attempts = 0
+        user.locked_until = None
+        db.UpdateUser(user)
+
     return ValidationStatus.VALID
     
