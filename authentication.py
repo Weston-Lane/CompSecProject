@@ -5,7 +5,7 @@ from User import User
 import re
 import time
 from enum import Enum
-from Database import Database
+from DataBase import Database
 
 LOCK_OUT_TIME = 900 #15min
 LOGIN_ATTEMPTS_MAX = 5
