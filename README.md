@@ -3,19 +3,23 @@
 ## Dependencies
 
 * **Create a virtual environment** (if not done already):
-    ```bash
-    python -m venv venv
-    ```
+    Windows:
+        python -m venv venv
+    Mac:
+        python3 -m venv venv
+
 
 * **Activate the virtual environment**:
-    ```bash
-    venv\Scripts\activate
-    ```
+    Windows:
+        venv\Scripts\activate
+    Mac:
+        source venv/bin/activate
 
 * **Install requirements**:
-    ```bash
     pip install -r requirements.txt
     ```
+    If youre on python 3.14 use requirements2.txt instead.
+
 * **Run With**
     ```bash
     python app.py
