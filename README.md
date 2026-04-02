@@ -16,3 +16,7 @@
     ```bash
     pip install -r requirements.txt
     ```
+* **Run With**
+    ```bash
+    python app.py
+    ```
