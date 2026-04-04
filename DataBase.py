@@ -1,13 +1,13 @@
 import jsonUtils
 from User import User
 #DataBase is a singleton
-class Database:
+class DataBase:
     _instance = None
 
     def __init__(self):
-        # We raise an error to prevent people from accidentally calling Database()
-        if Database._instance is not None:
-            raise Exception("This class is a singleton! Use Database.get_instance() instead.")
+        # We raise an error to prevent people from accidentally calling DataBase()
+        if DataBase._instance is not None:
+            raise Exception("This class is a singleton! Use DataBase.get_instance() instead.")
 
     @classmethod
     def get_instance(cls):

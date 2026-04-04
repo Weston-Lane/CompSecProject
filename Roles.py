@@ -19,9 +19,9 @@ def require_roles(*allowed_roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             # Local import prevents circular dependency issues with app.py
-            from Database import Database 
+            from DataBase import DataBase 
             
-            db = Database.get_instance()
+            db = DataBase.get_instance()
             user = db.FindUser(g.user_id)
             
             # If user doesn't exist in DB or lacks required role

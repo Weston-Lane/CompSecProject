@@ -5,7 +5,7 @@ from User import User
 import re
 import time
 from enum import Enum
-from Database import Database
+from DataBase import DataBase
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
 LOCK_OUT_TIME = 900 #15min
@@ -50,7 +50,7 @@ def registerUser(data):
     return jsonify({"status": "success", "message": "Account Registered"}), 200
   
 def ValidateInput(userInfo):
-    db = Database.get_instance() 
+    db = DataBase.get_instance() 
 
     username = userInfo.get('username', '')
     email = userInfo.get('email', '')
@@ -88,7 +88,7 @@ def AddUserToDB(userInfo):
         email = userInfo['email'],
         password_hash = hashedPass.decode('utf-8'),
     )
-    db = Database.get_instance()    
+    db = DataBase.get_instance()    
     db.AddUser(newUser)
     db.SaveUsers()
 
@@ -138,7 +138,7 @@ def LoginUser(data):
             
 
 def ValidateCredentials(userInfo):
-    db = Database.get_instance()
+    db = DataBase.get_instance()
     user = db.FindUser(userInfo.get('username'))
     if user is None:
         return ValidationStatus.INVALID_USER_INPUT
