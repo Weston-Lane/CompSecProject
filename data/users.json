@@ -5,15 +5,6 @@
         "password_hash": "$2b$12$D2Cz1KqWzVquDM/n.FpI2uTEPyhjXqr/E4fhmNmdP.lGj5INWmlUK",
         "created_at": 1774548290.742945,
         "role": "user",
-        "failed_attempts": 5,
-        "locked_until": 1774572725.6173003
-    },
-    {
-        "username": "hhhg",
-        "email": "west@gmail.com",
-        "password_hash": "$2b$12$zdpH0j3flg8DTmLgHcTNB.fUqcc96aPjr/K32cL/5mGuNdSL.TVwa",
-        "created_at": 1774548345.9606106,
-        "role": "user",
         "failed_attempts": 0,
         "locked_until": null
     },
@@ -23,8 +14,17 @@
         "password_hash": "$2b$12$6onIx6lXQuoCJ8BrGbqW8eEyGpYE4aIMfXGgxHU6kE0EvYUCRpsBu",
         "created_at": 1774572551.5272982,
         "role": "admin",
+        "failed_attempts": 3,
+        "locked_until": null
+    },
+    {
+        "username": "hhhj",
+        "email": "w@g.com",
+        "password_hash": "$2b$12$dWVi6.ZakllHtabW9IgqsOW0xIqSSy86n9jS4RXdKQHQ57VWj.C4.",
+        "created_at": 1775268228.3506534,
+        "role": "guest",
         "failed_attempts": 0,
         "locked_until": null
     }
-    
+
 ]

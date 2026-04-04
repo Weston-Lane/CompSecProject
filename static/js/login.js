@@ -13,13 +13,18 @@ async function loginUser() {
         const result = await response.json();
 
         if (response.ok) {
-            // Save the JWT to localStorage
-            //localStorage.setItem('jwt_token', result.token);
             alert('Login successful!');
             
             // Redirect to the main dashboard
             window.location.href = '/dashboard'; 
-        } else {
+        } 
+        else if (response.status === 429) 
+        {
+            // Specifically handle the rate limit warning
+            alert('Too many attempts! ' + result.message);
+        } 
+        else 
+        {
             alert('Login failed: ' + result.message);
         }
     } catch (error) {
