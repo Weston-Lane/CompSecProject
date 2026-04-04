@@ -1,12 +1,13 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, make_response
 import bcrypt
 import jsonUtils
 from User import User
 import re
 import time
 from enum import Enum
-from DataBase import Database
-
+from Database import Database
+from SecurityLogger import SecurityLogger
+from SessionManager import SessionManager
 LOCK_OUT_TIME = 900 #15min
 LOGIN_ATTEMPTS_MAX = 5
 class ValidationStatus(Enum):
@@ -46,7 +47,7 @@ def registerUser(data):
                 return jsonify({"status": "error", "message": "Unknown server error"}), 500
             
     AddUserToDB(userInfo)
-    return jsonify({"status": "success", "message": "Account Registered"}), 400
+    return jsonify({"status": "success", "message": "Account Registered"}), 200
   
 def ValidateInput(userInfo):
     db = Database.get_instance() 
@@ -98,6 +99,15 @@ def LoginUser(data):
     }
 
     if(error := ValidateCredentials(userInfo)):
+        securityLogger = SecurityLogger.get_instance()
+        securityLogger.log_event(event_type="Failed Login Attempt", 
+                                 user_id= userInfo['username'], 
+                                details={
+                                "reason": error.name, # Evaluates to 'INVALID_USER_INPUT', 'PASS_NOT_MATCH', etc.
+                                "provided_username": userInfo.get('username')
+                                },
+                                severity="WARNING"
+                                )
         match error:
             case ValidationStatus.INVALID_USER_INPUT:
                 return jsonify({"status": "error", "message": "Invalid Username or Password"}), 401
@@ -106,7 +116,25 @@ def LoginUser(data):
             case ValidationStatus.TOO_MANY_ATTEMPTS:
                 return jsonify({"status": "error", "message": "Too many attempts, lockout"}), 403
         
-    return jsonify({"status": "success", "message": "Succesful Login"}), 200
+    session_manager = SessionManager.get_instance()
+    token = session_manager.create_session(user_id=userInfo['username'])
+    
+    response = make_response(jsonify({
+        "status": "success", 
+        "message": "Successful Login"
+    }))
+    
+    response.set_cookie(
+        'session_token',
+        token,
+        httponly=True,    
+        secure=True,      
+        samesite='Strict',
+        max_age=1800      
+    )
+    
+    # 4. Return the response and the 200 OK status
+    return response, 200
             
 
 def ValidateCredentials(userInfo):

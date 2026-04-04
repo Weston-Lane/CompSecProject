@@ -8,7 +8,7 @@
 <body>
     <header>
         <h1>Secure Document Dashboard</h1>
-        <button onclick="logout()">Logout</button>
+        <button onclick="logoutUser()">Logout</button>
     </header>
 
     <main>
@@ -30,13 +30,6 @@
     <script>
         // 1. Security Check: Run immediately when the page loads
         window.onload = function() {
-            // const token = localStorage.getItem('jwt_token');
-            // if (!token) {
-            //     // Kick unauthorized users back to login
-            //     window.location.href = '/'; 
-            //     return;
-            // }
-            // If token exists, load the user's files
             loadDocuments();
         };
 
@@ -84,5 +77,6 @@
             window.location.href = '/';
         }
     </script>
+    <script src='../static/js/dashboard.js'></script>
 </body>
 </html>
