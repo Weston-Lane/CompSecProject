@@ -1,6 +1,6 @@
 import json
 import os
-# Helper to read/write your JSON "Database"
+# Helper to read/write your JSON "DataBase"
 def read_json(filepath):
     if os.path.exists(filepath):
         try:

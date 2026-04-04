@@ -1,1 +1,7 @@
 /venv
+*.dmg
+__pycache__/
+*.pyc
+data/logs/
+data/sessions.json
+data/users.json
