@@ -42,7 +42,7 @@ class DataBase:
             print(f"---  Loading {path} (Encrypted) ---")
             return storage.load_encrypted(path)
         except Exception as e:
-            # FALLBACK: Try to load as PLAIN JSON (Migration path)
+            # FALLBACK: Try to load as PLAIN JSON for data migration
             print(f"---  WARNING: Decryption failed for {path} ---")
             print(f"---  Attempting Migration for {path} ---")
             try:
