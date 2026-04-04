@@ -1,10 +1,14 @@
-from flask import Flask, request, jsonify, render_template, g, make_response, redirect
-from flask_cors import CORS # Allows your frontend to talk to the backend
+from flask import Flask, request, jsonify, render_template, g, make_response, redirect, send_file
+from flask_cors import CORS 
 import bcrypt
 import jsonUtils
+import os
+import io
 import authentication
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
+from DataBase import DataBase
+from encryption_utils import storage 
 app = Flask(__name__)
 CORS(app) # Prevents "Cross-Origin" errors during local development
 
@@ -43,6 +47,26 @@ def require_https():
     if not request.is_secure and app.env != "development":
         url = request.url.replace("http://", "https://", 1)
         return redirect(url, code=301)
+    
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    ###LOG
+    SecurityLogger.log_event(
+        event_type='RATE_LIMIT_EXCEEDED',
+        user_id=None,  # Typically None during a brute-force attack before login
+        details={
+            'endpoint': request.path,
+            'limit_hit': e.description,
+            'method': request.method
+        },
+        severity='WARNING'
+    )
+    # 'e.description' contains the string "10 per 1 minute"
+    return jsonify({
+        "status": "error",
+        "message": f"Rate limit exceeded: {e.description}. Please try again later."
+    }), 429
+    
     
 @app.before_request
 def load_user_session():
@@ -134,26 +158,173 @@ def goToLoginPage():
     return render_template('index.html')
 
 
+########################## Document Routing ###################################
 
-@app.errorhandler(429)
-def ratelimit_handler(e):
-    ###LOG
-    SecurityLogger.log_event(
-        event_type='RATE_LIMIT_EXCEEDED',
-        user_id=None,  # Typically None during a brute-force attack before login
-        details={
-            'endpoint': request.path,
-            'limit_hit': e.description,
-            'method': request.method
-        },
-        severity='WARNING'
-    )
-    # 'e.description' contains the string "10 per 1 minute"
-    return jsonify({
-        "status": "error",
-        "message": f"Rate limit exceeded: {e.description}. Please try again later."
-    }), 429
+# Ensure this matches the directory used in your code
+UPLOAD_DIR = 'uploads'
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
     
+    if 'document' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['document']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # 1. Encrypt the file (Assuming cipher_suite is defined globally as before)
+    file_data = file.read()
+    encrypted_data = storage.encrypt_bytes(file_data)
+
+    # 2. Save physical file to disk
+    file_id = os.urandom(8).hex() 
+    storage_path = os.path.join(UPLOAD_DIR, file_id)
+    with open(storage_path, 'wb') as f:
+        f.write(encrypted_data)
+
+    # 3. Add metadata to the DataBase
+    db = DataBase.get_instance()
+    db.AddDocument(
+        doc_id=file_id, 
+        original_filename=file.filename, 
+        content_type=file.content_type, 
+        owner_id=g.user_id
+    )
+
+    return jsonify({
+        "message": "File encrypted and uploaded successfully", 
+        "file_id": file_id
+    }), 200
+
+@app.route('/api/my-files', methods=['GET'])
+def get_my_files():
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    db = DataBase.get_instance()
+    user_docs = db.GetUserDocuments(g.user_id)
+    
+    # Format the data for the frontend
+    files_to_return = []
+    for doc in user_docs:
+        files_to_return.append({
+            "file_id": doc['file_id'],
+            "filename": doc['original_filename'],
+            "shared_with": doc.get('shared_with', [])
+        })
+            
+    return jsonify({"files": files_to_return}), 200
+
+@app.route('/api/shared-with-me', methods=['GET'])
+def get_shared_files():
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    db = DataBase.get_instance()
+    shared_docs = db.GetSharedDocuments(g.user_id)
+    
+    files_to_return = []
+    for doc in shared_docs:
+        files_to_return.append({
+            "file_id": doc['file_id'],
+            "filename": doc['original_filename'],
+            "owner_id": doc['owner_id']
+        })
+            
+    return jsonify({"files": files_to_return}), 200
+
+@app.route('/api/view/<file_id>', methods=['GET'])
+def view_file(file_id):
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    db = DataBase.get_instance()
+    doc_meta = db.GetDocument(file_id)
+    
+    if not doc_meta:
+        return jsonify({"error": "File not found"}), 404
+
+    # Authorization Check: Is the user the owner OR in the shared_with list?
+    is_owner = doc_meta.get('owner_id') == g.user_id
+    is_shared = g.user_id in doc_meta.get('shared_with', [])
+
+    if not (is_owner or is_shared):
+        # Log unauthorized access attempt here if using SecurityLogger
+        return jsonify({"error": "Forbidden: You do not have permission"}), 403
+
+    # Decrypt and Serve
+    storage_path = os.path.join(UPLOAD_DIR, file_id)
+    if not os.path.exists(storage_path):
+        return jsonify({"error": "Encrypted file missing from disk"}), 500
+
+    with open(storage_path, 'rb') as f:
+        encrypted_data = f.read()
+
+    try:
+       decrypted_data = storage.decrypt_bytes(encrypted_data)
+    except Exception as e:
+        return jsonify({"error": "Decryption failed"}), 500
+
+    return send_file(
+        io.BytesIO(decrypted_data),
+        mimetype=doc_meta['content_type'],
+        as_attachment=False, # Set to True to force download
+        download_name=doc_meta['original_filename']
+    )
+
+@app.route('/api/share', methods=['POST'])
+def share_file():
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    file_id = data.get('file_id')
+    target_user = data.get('target_user')
+
+    if not file_id or not target_user:
+        return jsonify({"error": "Missing file_id or target_user"}), 400
+
+    db = DataBase.get_instance()
+    
+    # Optional: Verify the target_user actually exists in the system
+    # if not db.FindUser(target_user):
+    #     return jsonify({"error": "Target user does not exist"}), 404
+
+    success = db.ShareDocument(file_id, g.user_id, target_user)
+
+    if success:
+        return jsonify({"message": f"Successfully shared with {target_user}"}), 200
+    else:
+        return jsonify({"error": "Failed to share. Check permissions."}), 403
+
+
+@app.route('/api/delete/<file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    if not getattr(g, 'user_id', None):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    db = DataBase.get_instance()
+    success = db.DeleteDocument(file_id, g.user_id)
+    
+    if not success:
+        return jsonify({"error": "Forbidden or file not found"}), 403
+
+    # Remove physical file
+    storage_path = os.path.join(UPLOAD_DIR, file_id)
+    if os.path.exists(storage_path):
+        try:
+            os.remove(storage_path)
+        except OSError as e:
+            print(f"Error deleting physical file {file_id}: {e}")
+            return jsonify({"error": "Database updated, but physical file deletion failed"}), 500
+
+    return jsonify({"message": "Document deleted successfully"}), 200
+
+
 
 if __name__ == '__main__':
     app.run(

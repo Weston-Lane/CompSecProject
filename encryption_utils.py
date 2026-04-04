@@ -30,7 +30,15 @@ class EncryptedStorage:
             encrypted = f.read()
             decrypted = self.cipher.decrypt(encrypted)
             return json.loads(decrypted.decode())
+    # --- Raw Binary File Methods ---
 
+    def encrypt_bytes(self, raw_data: bytes) -> bytes:
+        """Encrypts raw binary data (for file uploads)"""
+        return self.cipher.encrypt(raw_data)
+
+    def decrypt_bytes(self, encrypted_data: bytes) -> bytes:
+        """Decrypts raw binary data (for file viewing)"""
+        return self.cipher.decrypt(encrypted_data)
 
 # 🛡️ Access the Singleton-safe storage instance
 # Note: In a real app, you'd define 'storage' once here or inside app.py

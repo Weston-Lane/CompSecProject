@@ -38,6 +38,15 @@ class SessionManager:
     # --- Public Methods ---
 
     def create_session(self, user_id: str) -> str:
+        # 1. NEW: Find and destroy any existing sessions for this user
+        # We collect the keys in a list first to avoid modifying a dictionary while looping over it
+        stale_tokens = [
+            token for token, session_data in self.sessions.items() 
+            if session_data['user_id'] == user_id
+        ]
+        
+        for stale_token in stale_tokens:
+            del self.sessions[stale_token]
         """Creates a new session, saves to disk, and returns the secure token."""
         token = secrets.token_urlsafe(32)
         self.sessions[token] = {
