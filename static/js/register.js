@@ -13,6 +13,10 @@ async function registerUser() {
 
     const result = await response.json();
     alert(result.message);
+    if(response.ok)
+    {
+        goToLogin()
+    }
 }
 
 async function goToLogin()
