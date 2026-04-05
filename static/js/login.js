@@ -4,7 +4,7 @@ async function loginUser() {
     const pass = document.getElementById('password').value;
 
     try {
-        const response = await fetch('http://127.0.0.1:5000/api/login', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass })
@@ -16,7 +16,7 @@ async function loginUser() {
             alert('Login successful!');
             
             // Redirect to the main dashboard
-            window.location.href = '/dashboard'; 
+            window.location.href = result.redirect;
         } 
         else if (response.status === 429) 
         {

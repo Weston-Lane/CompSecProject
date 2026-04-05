@@ -5,7 +5,7 @@ from User import User
 import re
 import time
 from enum import Enum
-from Database import Database
+from DataBase import DataBase
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
 LOCK_OUT_TIME = 900 #15min
@@ -24,6 +24,7 @@ def registerUser(data):
         "username": data.get('username'),
         "password": data.get('password'),
         "passwordMatch": data.get('passwordMatch'),
+        "role": "",
         "email": data.get('email')
     }
 
@@ -45,12 +46,18 @@ def registerUser(data):
                 return jsonify({"status": "error", "message": "Username or email already exists"}), 409
             case _:
                 return jsonify({"status": "error", "message": "Unknown server error"}), 500
-            
+
+    db = DataBase.get_instance()
+    if len(db.users) == 0 :
+        userInfo['role'] = "admin"
+    else:
+        userInfo['role'] = "guest"
+
     AddUserToDB(userInfo)
     return jsonify({"status": "success", "message": "Account Registered"}), 200
   
 def ValidateInput(userInfo):
-    db = Database.get_instance() 
+    db = DataBase.get_instance() 
 
     username = userInfo.get('username', '')
     email = userInfo.get('email', '')
@@ -87,8 +94,9 @@ def AddUserToDB(userInfo):
         username = userInfo['username'],
         email = userInfo['email'],
         password_hash = hashedPass.decode('utf-8'),
+        role = userInfo['role']
     )
-    db = Database.get_instance()    
+    db = DataBase.get_instance()    
     db.AddUser(newUser)
     db.SaveUsers()
 
@@ -118,10 +126,23 @@ def LoginUser(data):
         
     session_manager = SessionManager.get_instance()
     token = session_manager.create_session(user_id=userInfo['username'])
+
+    db = DataBase.get_instance()
+    user = db.FindUser(userInfo['username'])
     
+    # Determine the correct landing page
+    if user.role == 'admin':
+        redirect_url = '/admin'
+    elif user.role == 'user':
+        redirect_url = '/dashboard'
+    else:
+        redirect_url = '/guest'
+    # ---------------------------------------------------
+
     response = make_response(jsonify({
         "status": "success", 
-        "message": "Successful Login"
+        "message": "Successful Login",
+        "redirect": redirect_url  # <-- Send the URL to the frontend
     }))
     
     response.set_cookie(
@@ -138,7 +159,7 @@ def LoginUser(data):
             
 
 def ValidateCredentials(userInfo):
-    db = Database.get_instance()
+    db = DataBase.get_instance()
     user = db.FindUser(userInfo.get('username'))
     if user is None:
         return ValidationStatus.INVALID_USER_INPUT

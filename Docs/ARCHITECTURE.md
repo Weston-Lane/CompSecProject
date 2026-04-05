@@ -4,7 +4,7 @@ sequenceDiagram
     participant Client as Web Browser (JavaScript)
     participant Server as Flask API (/api/upload)
     participant Disk as File System (uploads/)
-    participant DB as JSON Database (documents.json)
+    participant DB as JSON DataBase (documents.json)
 
     Client->>Server: POST /api/upload (JWT + File FormData)
     

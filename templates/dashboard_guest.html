@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Guest Portal - Secure Doc Share</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header style="background-color: #5bc0de; color: white;">
+        <h1>Guest Portal</h1>
+        <button onclick="logoutUser()">Logout</button>
+    </header>
+
+    <main>
+        <section id="shared-library-section">
+            <h2>Documents Shared With You</h2>
+            <ul id="shared-document-list">
+                </ul>
+        </section>
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
+    <script>
+        // Override the window.onload so it ONLY loads shared documents
+        window.onload = function() {
+            loadSharedDocuments();
+        };
+    </script>
+</body>
+</html>
