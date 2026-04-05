@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard (ADMIN) - Secure Doc Share</title>
+    <title>Admin Dashboard - Secure Doc Share</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header>
-        <h1>Secure Document Dashboard</h1>
-        <button onclick="logout()">Logout</button>
+    <header style="background-color: #333; color: white;">
+        <h1>Dashboard ------ ADMIN -------</h1>
+        <button onclick="logoutUser()">Logout</button>
     </header>
 
     <main>
@@ -20,69 +20,41 @@
 
         <hr>
 
-        <section id="library-section">
+        <section id="my-library-section">
             <h2>My Documents</h2>
-            <ul id="document-list">
-            </ul>
+            <ul id="my-document-list"></ul>
         </section>
+        <div id="share-form-container" style="display: none; border: 1px solid #000; padding: 10px; margin-top: 20px;">
+        <h3>Share File</h3>
+            <p>File ID: <span id="share-file-id-display"></span></p>
+            <input type="hidden" id="share-file-id">
+            <input type="text" id="share-target-user" placeholder="Enter Username to share with">
+            <button onclick="submitShare()">Grant Access</button>
+            <button onclick="closeShareForm()">Cancel</button>
+        </div>
+        <hr>
+        <section id="shared-library-section">
+            <h2>Shared With Me</h2>
+            <ul id="shared-document-list"></ul>
+        </section>
+
+        <hr style="border: 2px solid red;">
+
+        <section id="admin-all-documents-section">
+            <h2 style="color: red;">[ADMIN] All System Documents</h2>
+            <ul id="all-document-list"></ul>
+        </section>
+
+        <hr style="border: 2px solid red;">
+
+        <section id="admin-users-section">
+            <h2 style="color: red;">[ADMIN] User Management</h2>
+            <ul id="user-list"></ul>
+        </section>
+
     </main>
 
-    <script>
-        // 1. Security Check: Run immediately when the page loads
-        window.onload = function() {
-            // const token = localStorage.getItem('jwt_token');
-            // if (!token) {
-            //     // Kick unauthorized users back to login
-            //     window.location.href = '/'; 
-            //     return;
-            // }
-            // If token exists, load the user's files
-            loadDocuments();
-        };
-
-        // 2. Fetch documents from the Python backend
-        async function loadDocuments() {
-            const token = localStorage.getItem('jwt_token');
-            
-            try {
-                const response = await fetch('http://127.0.0.1:5000/api/documents', {
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (response.ok) {
-                    const docs = await response.json();
-                    displayDocuments(docs);
-                } else if (response.status === 401) {
-                    // Token expired or invalid
-                    logout();
-                }
-            } catch (error) {
-                console.error("Failed to fetch documents", error);
-            }
-        }
-
-        // 3. Render the documents in the HTML
-        function displayDocuments(docs) {
-            const list = document.getElementById('document-list');
-            list.innerHTML = ''; // Clear loading text
-            
-            docs.forEach(doc => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <strong>${doc.original_filename}</strong> 
-                    (Role: ${doc.role})
-                    <button onclick="downloadFile('${doc.doc_id}')">Download</button>
-                `;
-                list.appendChild(li);
-            });
-        }
-
-        // 4. Session Management
-        function logout() {
-            localStorage.removeItem('jwt_token');
-            window.location.href = '/';
-        }
-    </script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/admin_dashboard.js"></script>
 </body>
 </html>

@@ -26,6 +26,14 @@ def require_roles(*allowed_roles):
             
             # If user doesn't exist in DB or lacks required role
             if not user or user.role not in allowed_roles:
+                from SecurityLogger import SecurityLogger
+                from flask import request
+                SecurityLogger.get_instance().log_event(
+                    event_type="UNAUTHORIZED_ROLE_ACCESS",
+                    user_id=g.user_id,
+                    details={"path": request.path, "required": allowed_roles},
+                    severity="CRITICAL"
+                )
                 return jsonify({"status": "error", "message": "Forbidden. Insufficient privileges."}), 403
                 
             return f(*args, **kwargs)

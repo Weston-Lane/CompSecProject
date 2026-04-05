@@ -61,6 +61,24 @@ async function loadSharedDocuments() {
 }
 
 // --- UI Rendering ---
+function displaySharedDocuments(docs) {
+    const list = document.getElementById('shared-document-list');
+    list.innerHTML = ''; 
+    
+    if (docs.length === 0) {
+        list.innerHTML = '<li>No documents shared with you.</li>';
+        return;
+    }
+
+    docs.forEach(doc => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>${doc.filename}</strong> (Owner: ${doc.owner_id})
+            <button onclick="viewFile('${doc.file_id}')">View/Download</button>
+        `;
+        list.appendChild(li);
+    });
+}
 
 function displayMyDocuments(docs) {
     const list = document.getElementById('my-document-list');
@@ -72,15 +90,20 @@ function displayMyDocuments(docs) {
     }
 
     docs.forEach(doc => {
+        // Re-adding the shared status logic
         const sharedWithStr = doc.shared_with && doc.shared_with.length > 0 
-            ? `(Shared with: ${doc.shared_with.join(', ')})` 
-            : '(Private)';
+            ? `<span style="color: #666; font-style: italic;">(Shared with: ${doc.shared_with.join(', ')})</span>` 
+            : '<span style="color: #999;">(Private)</span>';
 
         const li = document.createElement('li');
         li.innerHTML = `
             <strong>${doc.filename}</strong> ${sharedWithStr}
-            <button onclick="viewFile('${doc.file_id}')">View/Download</button>
-            <button onclick="openShareForm('${doc.file_id}')">Share</button>
+            <div style="margin-top: 5px;">
+                <button onclick="viewFile('${doc.file_id}')">View</button>
+                <button onclick="window.location.href='/api/download/${doc.file_id}'">Download</button>
+                <button onclick="openShareForm('${doc.file_id}')">Share</button>
+                <button onclick="deleteFile('${doc.file_id}')" style="background-color: #ff4d4d; color: white;">Delete</button>
+            </div>
         `;
         list.appendChild(li);
     });

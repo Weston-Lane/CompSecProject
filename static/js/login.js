@@ -16,7 +16,7 @@ async function loginUser() {
             alert('Login successful!');
             
             // Redirect to the main dashboard
-            window.location.href = '/dashboard'; 
+            window.location.href = result.redirect;
         } 
         else if (response.status === 429) 
         {

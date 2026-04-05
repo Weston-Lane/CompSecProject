@@ -25,7 +25,14 @@
             <ul id="my-document-list">
                 </ul>
         </section>
-
+        <div id="share-form-container" style="display: none; border: 1px solid #000; padding: 10px; margin-top: 20px;">
+            <h3>Share File</h3>
+            <p>File ID: <span id="share-file-id-display"></span></p>
+            <input type="hidden" id="share-file-id">
+            <input type="text" id="share-target-user" placeholder="Enter Username to share with">
+            <button onclick="submitShare()">Grant Access</button>
+            <button onclick="closeShareForm()">Cancel</button>
+        </div>
         <hr>
 
         <section id="shared-library-section">
@@ -35,14 +42,7 @@
         </section>
     </main>
 
-    <div id="share-form-container" style="display: none; border: 1px solid #000; padding: 10px; margin-top: 20px;">
-        <h3>Share File</h3>
-        <p>File ID: <span id="share-file-id-display"></span></p>
-        <input type="hidden" id="share-file-id">
-        <input type="text" id="share-target-user" placeholder="Enter Username to share with">
-        <button onclick="submitShare()">Grant Access</button>
-        <button onclick="closeShareForm()">Cancel</button>
-    </div>
+
 
     <script src="/static/js/dashboard.js"></script>
 </body>

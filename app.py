@@ -1,15 +1,33 @@
 from flask import Flask, request, jsonify, render_template, g, make_response, redirect, send_file
-from flask_cors import CORS 
-import bcrypt
-import jsonUtils
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+import html 
 import os
 import io
+import re
+import filetype
 import authentication
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
 from DataBase import DataBase
-from encryption_utils import storage 
+from encryption_utils import storage
+from Roles import login_required, require_roles
+
+############################################################################
+#           DELETE AFTER DONE!
+#           ADMIN USER : admin
+#           ADMIN PASS: Password!123
+#           
+#           Other User Names and roles are: User, Guest 
+#           Passwords: Password!123
+#
+############################################################################
 app = Flask(__name__)
+
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+app.config['SECRET_KEY'] = 'super-secret-key-for-project' 
+
 CORS(app) # Prevents "Cross-Origin" errors during local development
 
 @app.after_request
@@ -94,6 +112,12 @@ def load_user_session():
         if session_data:
             g.user_id = session_data['user_id']
 
+@app.route('/admin')
+@login_required
+@require_roles('admin')
+def admin_dashboard_page():
+    return render_template('admin/dashboard.html')
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -102,8 +126,8 @@ def index():
 def registerUser():
     return authentication.registerUser(request.json)
 
-# This should be a long, random string. Do not expose it in production.
-app.config['SECRET_KEY'] = 'super-secret-key-for-project' 
+
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -146,8 +170,16 @@ def logout_user():
     return response, 200
 
 @app.route('/dashboard')
+@login_required
+@require_roles('user', 'admin') # Let admins see it for testing
 def dashboard():
     return render_template('dashboard.html')
+
+@app.route('/guest')
+@login_required
+@require_roles('guest', 'admin') # Let admins see it for testing
+def guest_dashboard_page():
+    return render_template('dashboard_guest.html')
 
 @app.route('/register')
 def goToRegisterPage():
@@ -164,6 +196,27 @@ def goToLoginPage():
 UPLOAD_DIR = 'uploads'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
+
+def sanitize_input(user_input):
+    """Escape HTML special characters"""
+    if not user_input:
+        return ""
+    return html.escape(user_input)
+
+def sanitize_output(data):
+    """Sanitize before rendering"""
+    if isinstance(data, str):
+        return html.escape(data)
+    return data
+
+
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if not getattr(g, 'user_id', None):
@@ -173,30 +226,48 @@ def upload_file():
         return jsonify({"error": "No file part"}), 400
     
     file = request.files['document']
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed"}), 400
+    
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    # 1. Encrypt the file (Assuming cipher_suite is defined globally as before)
+    # Strip directory traversal characters
+    safe_path_name = secure_filename(file.filename)
+    
+    #Run the string through XSS sanitization function
+    sanitized_filename = sanitize_input(safe_path_name)
+    
+    # 3. Fallback for edge cases
+    if not sanitized_filename:
+        sanitized_filename = "unnamed_document"
+    # ----------------------------------------
+
+    # Encrypt the file
     file_data = file.read()
+    # kind = filetype.guess(file_data)
+    # if kind is None or kind.extension not in ALLOWED_EXTENSIONS:
+    #     return jsonify({"error": "Spoofed file detected"}), 400
     encrypted_data = storage.encrypt_bytes(file_data)
 
-    # 2. Save physical file to disk
+    # Save physical file to disk
     file_id = os.urandom(8).hex() 
     storage_path = os.path.join(UPLOAD_DIR, file_id)
     with open(storage_path, 'wb') as f:
         f.write(encrypted_data)
 
-    # 3. Add metadata to the DataBase
+    # Add metadata to the DataBase
     db = DataBase.get_instance()
     db.AddDocument(
         doc_id=file_id, 
-        original_filename=file.filename, 
+        original_filename=sanitized_filename,  
         content_type=file.content_type, 
         owner_id=g.user_id
     )
 
     return jsonify({
-        "message": "File encrypted and uploaded successfully", 
+        "message": "File encrypted and uploaded securely", 
         "file_id": file_id
     }), 200
 
@@ -284,6 +355,9 @@ def share_file():
     data = request.json
     file_id = data.get('file_id')
     target_user = data.get('target_user')
+    
+    if not target_user or not re.match(r"^[a-zA-Z0-9_]{3,20}$", target_user):
+        return jsonify({"error": "Invalid username format"}), 400
 
     if not file_id or not target_user:
         return jsonify({"error": "Missing file_id or target_user"}), 400
@@ -324,8 +398,90 @@ def delete_file(file_id):
 
     return jsonify({"message": "Document deleted successfully"}), 200
 
+@app.route('/api/download/<file_id>', methods=['GET'])
+@login_required
+@require_roles('admin', 'user', 'guest')
+def download_file(file_id):
+    db = DataBase.get_instance()
+    doc_meta = db.GetDocument(file_id)
+    
+    if not doc_meta:
+        return jsonify({"error": "File not found"}), 404
+
+    # Permission check (Same as view)
+    user = db.FindUser(g.user_id)
+    is_admin = user and user.role == 'admin'
+    is_owner = doc_meta.get('owner_id') == g.user_id
+    is_shared = g.user_id in doc_meta.get('shared_with', [])
+
+    if not (is_admin or is_owner or is_shared):
+        return jsonify({"error": "Forbidden"}), 403
+
+    storage_path = os.path.join(UPLOAD_DIR, file_id)
+    with open(storage_path, 'rb') as f:
+        encrypted_data = f.read()
+
+    try:
+        decrypted_data = storage.decrypt_bytes(encrypted_data)
+    except Exception:
+        return jsonify({"error": "Decryption failed"}), 500
+
+    # Key change: as_attachment=True forces the 'Save As' dialog
+    return send_file(
+        io.BytesIO(decrypted_data),
+        mimetype=doc_meta['content_type'],
+        as_attachment=True, 
+        download_name=doc_meta['original_filename']
+    )
+
+@app.route('/api/admin/all-files', methods=['GET'])
+@login_required
+@require_roles('admin')
+def get_all_system_files():
+    db = DataBase.get_instance()
+    
+    files_to_return = []
+    for doc in db.documents:
+        files_to_return.append({
+            "file_id": doc['file_id'],
+            "filename": doc['original_filename'],
+            "owner_id": doc['owner_id'],
+            "shared_with": doc.get('shared_with', [])
+        })
+            
+    return jsonify({"files": files_to_return}), 200
 
 
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+@require_roles('admin')
+def get_all_users():
+    db = DataBase.get_instance()
+    
+    users_to_return = []
+    for user in db.users:
+        # Check if the database loaded it as a Dictionary
+        if isinstance(user, dict):
+            users_to_return.append({
+                "username": user.get('username', 'Unknown'),
+                "email": user.get('email', 'Unknown'),
+                "role": user.get('role', 'user'),
+                "locked_until": user.get('locked_until', None),
+                "failed_attempts": user.get('failed_attempts', 0)
+            })
+        # Check if it was stored as a Python Object
+        else:
+            users_to_return.append({
+                "username": getattr(user, 'username', 'Unknown'),
+                "email": getattr(user, 'email', 'Unknown'),
+                "role": getattr(user, 'role', 'user'),
+                "locked_until": getattr(user, 'locked_until', None),
+                "failed_attempts": getattr(user, 'failed_attempts', 0)
+            })
+            
+    return jsonify({"users": users_to_return}), 200
+
+########################## Entry Point ###################################
 if __name__ == '__main__':
     app.run(
         debug=True, 
