@@ -67,7 +67,7 @@ class DataBase:
         self.SaveUsers()
 
     def FindUser(self, username: str):
-        """Standard lookup to find a user by username."""
+        """READ ONLY, RETURNS A COPY. Standard lookup to find a user by username."""
         for userDict in self.users:
             if userDict.get('username') == username:
                 return User(**userDict)
@@ -81,6 +81,25 @@ class DataBase:
                 self.SaveUsers()
                 return True
         return False
+    
+    def UpdateUserRole(self, target_username: str, new_role: str) -> bool:
+        """Updates a user's role and saves to the database."""
+        
+        for idx, user in enumerate(self.users):
+            
+            if isinstance(user, dict):
+                if user.get('username') == target_username:
+                    self.users[idx]['role'] = new_role  
+                    self.SaveUsers()
+                    return True
+                    
+            else:
+                if getattr(user, 'username', None) == target_username:
+                    self.users[idx].role = new_role
+                    self.SaveUsers()
+                    return True
+                    
+        return False # Target username was not found
 
 ####################################Document Managment###########################
 # --- Document Management Methods ---

@@ -169,6 +169,34 @@ def logout_user():
     
     return response, 200
 
+@app.route('/api/admin/update-role', methods=['POST'])
+@login_required
+@require_roles('admin')
+def update_user_role():
+    data = request.json
+    target_user = data.get('username')
+    new_role = data.get('role')
+
+    if not target_user or not new_role:
+        return jsonify({"error": "Missing username or role"}), 400
+
+    # Ensure they are only picking valid roles
+    valid_roles = ['admin', 'user', 'guest']
+    if new_role not in valid_roles:
+        return jsonify({"error": "Invalid role specified"}), 400
+
+    # Safety mechanism: Prevent the active admin from demoting themselves
+    if target_user == g.user_id and new_role != 'admin':
+        return jsonify({"error": "You cannot demote your own admin account."}), 403
+
+    db = DataBase.get_instance()
+    success = db.UpdateUserRole(target_user, new_role)
+
+    if success:
+        return jsonify({"message": f"Successfully updated {target_user} to {new_role}"}), 200
+    else:
+        return jsonify({"error": "User not found in database"}), 404
+
 @app.route('/dashboard')
 @login_required
 @require_roles('user', 'admin') # Let admins see it for testing

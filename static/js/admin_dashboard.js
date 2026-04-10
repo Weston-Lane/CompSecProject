@@ -63,13 +63,52 @@ function displayAllUsers(users) {
 
     users.forEach(user => {
         const lockedStatus = user.locked_until ? `(Locked until ${new Date(user.locked_until * 1000).toLocaleTimeString()})` : '';
+        
+        // 1. Create a dropdown menu with the user's current role pre-selected
+        const roles = ['admin', 'user', 'guest'];
+        let dropdownHTML = `<select id="role-select-${user.username}">`;
+        roles.forEach(r => {
+            const isSelected = user.role === r ? 'selected' : '';
+            dropdownHTML += `<option value="${r}" ${isSelected}>${r}</option>`;
+        });
+        dropdownHTML += `</select>`;
+
+        // 2. Render the user row with the dropdown and Update button
         const li = document.createElement('li');
         li.innerHTML = `
             <strong>${user.username}</strong> - ${user.email} 
-            <span style="color: blue;">[Role: ${user.role}]</span>
+            ${dropdownHTML}
+            <button onclick="changeRole('${user.username}')" style="background-color: #4CAF50; color: white;">Update Role</button>
             <span style="color: red;">${lockedStatus}</span>
             Failures: ${user.failed_attempts}
         `;
         list.appendChild(li);
     });
+}
+
+// 3. New function to handle the API call
+async function changeRole(username) {
+    // Grab the new role from the dropdown specific to this user
+    const newRole = document.getElementById(`role-select-${username}`).value;
+
+    try {
+        const response = await fetch('/api/admin/update-role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, role: newRole })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(result.message);
+            // Reload the user list to show the change
+            loadAllUsers(); 
+        } else {
+            alert("Failed to update role: " + result.error);
+        }
+    } catch (error) {
+        console.error("Error updating role:", error);
+        alert("A network error occurred while updating the role.");
+    }
 }
