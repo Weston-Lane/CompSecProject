@@ -51,7 +51,7 @@ def registerUser(data):
     if len(db.users) == 0 :
         userInfo['role'] = "admin"
     else:
-        userInfo['role'] = "guest"
+        userInfo['role'] = "user"
 
     AddUserToDB(userInfo)
     return jsonify({"status": "success", "message": "Account Registered"}), 200
