@@ -54,6 +54,13 @@ def registerUser(data):
         userInfo['role'] = "user"
 
     AddUserToDB(userInfo)
+    SecurityLogger.get_instance().log_event(
+        event_type="ACCOUNT_CREATION",
+        user_id=userInfo['username'],
+        details={"email": userInfo['email'], "assigned_role": userInfo['role']},
+        severity="INFO",
+        log_type="security"
+    )
     return jsonify({"status": "success", "message": "Account Registered"}), 200
   
 def ValidateInput(userInfo):
@@ -108,14 +115,16 @@ def LoginUser(data):
 
     if(error := ValidateCredentials(userInfo)):
         securityLogger = SecurityLogger.get_instance()
-        securityLogger.log_event(event_type="Failed Login Attempt", 
-                                 user_id= userInfo['username'], 
-                                details={
-                                "reason": error.name, # Evaluates to 'INVALID_USER_INPUT', 'PASS_NOT_MATCH', etc.
-                                "provided_username": userInfo.get('username')
-                                },
-                                severity="WARNING"
-                                )
+        securityLogger.log_event(
+            event_type="AUTH_FAILURE", 
+            user_id= userInfo['username'], 
+            details={
+                "reason": error.name,
+                "provided_username": userInfo.get('username')
+            },
+            severity="WARNING",
+            log_type="security"
+        )
         match error:
             case ValidationStatus.INVALID_USER_INPUT:
                 return jsonify({"status": "error", "message": "Invalid Username or Password"}), 401
@@ -129,7 +138,13 @@ def LoginUser(data):
 
     db = DataBase.get_instance()
     user = db.FindUser(userInfo['username'])
-    
+    SecurityLogger.get_instance().log_event(
+        event_type="AUTH_SUCCESS",
+        user_id=userInfo['username'],
+        details={"role": user.role},
+        severity="INFO",
+        log_type="security"
+    )
     # Determine the correct landing page
     if user.role == 'admin':
         redirect_url = '/admin'
@@ -177,6 +192,13 @@ def ValidateCredentials(userInfo):
         user.failed_attempts += 1
         if user.failed_attempts >= LOGIN_ATTEMPTS_MAX:
             user.locked_until = time.time() + LOCK_OUT_TIME
+            SecurityLogger.get_instance().log_event(
+                event_type="ACCOUNT_LOCKOUT",
+                user_id=user.username,
+                details={"failed_attempts": user.failed_attempts, "lockout_duration_seconds": LOCK_OUT_TIME},
+                severity="CRITICAL",
+                log_type="security"
+            )
 
         db.UpdateUser(user)    
         return ValidationStatus.PASS_NOT_MATCH

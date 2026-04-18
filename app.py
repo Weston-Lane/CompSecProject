@@ -188,6 +188,11 @@ def update_user_role():
     # Ensure they are only picking valid roles
     valid_roles = ['admin', 'user', 'guest']
     if new_role not in valid_roles:
+        SecurityLogger.get_instance().log_event(
+            event_type="INPUT_VALIDATION_FAILURE",
+            details={"reason": "Invalid role specified", "input": new_role},
+            severity="WARNING", log_type="security"
+        )
         return jsonify({"error": "Invalid role specified"}), 400
 
     # Safety mechanism: Prevent the active admin from demoting themselves
@@ -198,6 +203,11 @@ def update_user_role():
     success = db.UpdateUserRole(target_user, new_role)
 
     if success:
+        SecurityLogger.get_instance().log_event(
+            event_type="SECURITY_CONFIG_CHANGE",
+            details={"action": "role_update", "target_user": target_user, "new_role": new_role},
+            severity="INFO", log_type="security"
+        )
         return jsonify({"message": f"Successfully updated {target_user} to {new_role}"}), 200
     else:
         return jsonify({"error": "User not found in database"}), 404
@@ -261,6 +271,11 @@ def upload_file():
     file = request.files['document']
 
     if not allowed_file(file.filename):
+        SecurityLogger.get_instance().log_event(
+            event_type="INPUT_VALIDATION_FAILURE",
+            details={"reason": "Disallowed file extension", "filename": file.filename},
+            severity="WARNING", log_type="security"
+        )
         return jsonify({"error": "File type not allowed"}), 400
     
     if file.filename == '':
@@ -297,6 +312,12 @@ def upload_file():
         original_filename=sanitized_filename,  
         content_type=file.content_type, 
         owner_id=g.user_id
+    )
+
+    SecurityLogger.get_instance().log_event(
+        event_type="DATA_CREATE",
+        details={"file_id": file_id, "filename": sanitized_filename},
+        severity="INFO", log_type="access"
     )
 
     return jsonify({
@@ -357,7 +378,11 @@ def view_file(file_id):
     is_shared = g.user_id in doc_meta.get('shared_with', [])
 
     if not (is_owner or is_shared):
-        # Log unauthorized access attempt here if using SecurityLogger
+        SecurityLogger.get_instance().log_event(
+            event_type="AUTHORIZATION_FAILURE",
+            details={"action": "read_file", "file_id": file_id},
+            severity="WARNING", log_type="security"
+        )
         return jsonify({"error": "Forbidden: You do not have permission"}), 403
 
     # Decrypt and Serve
@@ -372,6 +397,12 @@ def view_file(file_id):
        decrypted_data = storage.decrypt_bytes(encrypted_data)
     except Exception as e:
         return jsonify({"error": "Decryption failed"}), 500
+
+    SecurityLogger.get_instance().log_event(
+        event_type="DATA_READ",
+        details={"file_id": file_id, "action": "view_or_download"},
+        severity="INFO", log_type="access"
+    )
 
     return send_file(
         io.BytesIO(decrypted_data),
@@ -390,6 +421,11 @@ def share_file():
     target_user = data.get('target_user')
     
     if not target_user or not re.match(r"^[a-zA-Z0-9_]{3,20}$", target_user):
+        SecurityLogger.get_instance().log_event(
+            event_type="INPUT_VALIDATION_FAILURE",
+            details={"reason": "Invalid username format for sharing"},
+            severity="WARNING", log_type="security"
+        )
         return jsonify({"error": "Invalid username format"}), 400
 
     if not file_id or not target_user:
@@ -404,6 +440,11 @@ def share_file():
     success = db.ShareDocument(file_id, g.user_id, target_user)
 
     if success:
+        SecurityLogger.get_instance().log_event(
+            event_type="DATA_UPDATE",
+            details={"action": "share_file", "file_id": file_id, "shared_with": target_user},
+            severity="INFO", log_type="access"
+        )
         return jsonify({"message": f"Successfully shared with {target_user}"}), 200
     else:
         return jsonify({"error": "Failed to share. Check permissions."}), 403
@@ -418,6 +459,11 @@ def delete_file(file_id):
     success = db.DeleteDocument(file_id, g.user_id)
     
     if not success:
+        SecurityLogger.get_instance().log_event(
+            event_type="AUTHORIZATION_FAILURE",
+            details={"action": "delete_file", "file_id": file_id},
+            severity="WARNING", log_type="security"
+        )
         return jsonify({"error": "Forbidden or file not found"}), 403
 
     # Remove physical file
@@ -428,7 +474,12 @@ def delete_file(file_id):
         except OSError as e:
             print(f"Error deleting physical file {file_id}: {e}")
             return jsonify({"error": "Database updated, but physical file deletion failed"}), 500
-
+        
+    SecurityLogger.get_instance().log_event(
+        event_type="DATA_DELETE",
+        details={"file_id": file_id},
+        severity="INFO", log_type="access"
+    )
     return jsonify({"message": "Document deleted successfully"}), 200
 
 @app.route('/api/download/<file_id>', methods=['GET'])
