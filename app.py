@@ -3,6 +3,8 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import html 
 import os
+import os 
+from dotenv import load_dotenv
 import io
 import re
 import filetype
@@ -22,11 +24,14 @@ from Roles import login_required, require_roles
 #           Passwords: Password!123
 #
 ############################################################################
+
+load_dotenv()
+
 app = Flask(__name__)
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-app.config['SECRET_KEY'] = 'super-secret-key-for-project' 
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(32).hex()) 
 
 CORS(app) # Prevents "Cross-Origin" errors during local development
 
@@ -511,6 +516,7 @@ def get_all_users():
 
 ########################## Entry Point ###################################
 if __name__ == '__main__':
+
     app.run(
         debug=True, 
         host='0.0.0.0', 

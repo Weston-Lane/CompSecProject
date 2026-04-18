@@ -106,8 +106,8 @@ class DataBase:
 
     def SaveDocuments(self):
         """Saves the document metadata list to disk using encryption."""
-        #storage.save_encrypted(self.documentsFilePath, self.documents)
-        jsonUtils.write_json(self.documentsFilePath, self.documents)
+        storage.save_encrypted(self.documentsFilePath, self.documents)
+        #jsonUtils.write_json(self.documentsFilePath, self.documents)
 
     def AddDocument(self, doc_id: str, original_filename: str, content_type: str, owner_id: str):
         """Adds a new document record to memory and saves it."""

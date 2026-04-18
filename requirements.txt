@@ -16,6 +16,8 @@ ordered-set==4.1.0
 packaging==26.0
 pycparser==3.0
 PyJWT==2.8.0
+pyOpenSSL
+python-dotenv
 typing_extensions==4.15.0
 Werkzeug==3.0.1
 wrapt==2.1.2
