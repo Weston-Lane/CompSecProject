@@ -317,7 +317,7 @@ def get_my_files():
     for doc in user_docs:
         files_to_return.append({
             "file_id": doc['file_id'],
-            "filename": doc['original_filename'],
+            "filename": doc.get('display_name', doc.get('original_filename')),
             "shared_with": doc.get('shared_with', [])
         })
             
@@ -335,7 +335,7 @@ def get_shared_files():
     for doc in shared_docs:
         files_to_return.append({
             "file_id": doc['file_id'],
-            "filename": doc['original_filename'],
+            "filename": doc.get('display_name', doc.get('original_filename')),
             "owner_id": doc['owner_id']
         })
             
@@ -376,7 +376,7 @@ def view_file(file_id):
     return send_file(
         io.BytesIO(decrypted_data),
         mimetype=doc_meta['content_type'],
-        as_attachment=False, # Set to True to force download
+        as_attachment=True, # Set to True to force download
         download_name=doc_meta['original_filename']
     )
 
@@ -477,7 +477,7 @@ def get_all_system_files():
     for doc in db.documents:
         files_to_return.append({
             "file_id": doc['file_id'],
-            "filename": doc['original_filename'],
+           "filename": doc.get('display_name', doc.get('original_filename')),
             "owner_id": doc['owner_id'],
             "shared_with": doc.get('shared_with', [])
         })

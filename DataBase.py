@@ -110,16 +110,37 @@ class DataBase:
         #jsonUtils.write_json(self.documentsFilePath, self.documents)
 
     def AddDocument(self, doc_id: str, original_filename: str, content_type: str, owner_id: str):
-        """Adds a new document record to memory and saves it."""
+        """Adds a new document record, automatically handling versioning."""
         import time
+        
+        # Search the database for files with the exact same name owned by this exact user
+        existing_versions = [
+            doc.get('version', 1) # Default to 1 if the 'version' key doesn't exist yet
+            for doc in self.documents 
+            if doc.get('owner_id') == owner_id and doc.get('original_filename') == original_filename
+        ]
+
+        # If previous versions exist, increment the highest one. Otherwise, start at version 1.
+        current_version = max(existing_versions) + 1 if existing_versions else 1
+
         doc_record = {
             "file_id": doc_id,
             "original_filename": original_filename,
+            "display_name": f"{original_filename} v{current_version}",
+            "version": current_version,
             "content_type": content_type,
             "owner_id": owner_id,
-            "shared_with": [], # Initialize empty list for sharing
+            "shared_with": [], 
             "upload_time": time.time()
         }
+
+        # Versions Inherit Persmissions
+        if current_version > 1:
+            for doc in reversed(self.documents):
+                if doc.get('owner_id') == owner_id and doc.get('original_filename') == original_filename:
+                    doc_record['shared_with'] = doc.get('shared_with', []).copy()
+                    break
+
         self.documents.append(doc_record)
         self.SaveDocuments()
 
