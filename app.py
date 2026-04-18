@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify, render_template, g, make_response, redirect, send_file
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import html 
@@ -34,6 +36,13 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', os.urandom(32).hex()) 
 
 CORS(app) # Prevents "Cross-Origin" errors during local development
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    enabled = True
+)
 
 @app.after_request
 def set_security_headers(response):
@@ -74,7 +83,8 @@ def require_https():
 @app.errorhandler(429)
 def ratelimit_handler(e):
     ###LOG
-    SecurityLogger.log_event(
+    securityLogger = SecurityLogger.get_instance()
+    securityLogger.log_event(
         event_type='RATE_LIMIT_EXCEEDED',
         user_id=None,  # Typically None during a brute-force attack before login
         details={
@@ -135,7 +145,9 @@ def registerUser():
 
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
+    print(f"DEBUG: Rate limiter is tracking IP: {get_remote_address()}")
     return authentication.LoginUser(request.json)
 
 @app.route('/api/logout', methods=['POST'])
@@ -569,7 +581,7 @@ def get_all_users():
 if __name__ == '__main__':
 
     app.run(
-        debug=True, 
+        debug=False, 
         host='0.0.0.0', 
         port=5000, 
         ssl_context=('cert.pem', 'key.pem')
