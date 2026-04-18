@@ -15,47 +15,52 @@ class SecurityLogger:
             cls._instance._initialize()
         return cls._instance
 
-    def _initialize(self, log_file='data/logs/security.log'):
-        # 1. Prevent FileNotFoundError by ensuring the directory exists
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    def _initialize(self, sec_file='data/logs/security.log', acc_file='data/logs/access.log'):
+        os.makedirs(os.path.dirname(sec_file), exist_ok=True)
         
-        self.logger = logging.getLogger('security')
-        self.logger.setLevel(logging.INFO)
-        
-        # 2. Prevent duplicate logs by checking if handlers already exist
-        if not self.logger.handlers:
-            handler = logging.FileHandler(log_file)
-            # Output pure JSON instead of mixing text prefixes with JSON bodies
-            formatter = logging.Formatter('%(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+        # Security Logger
+        self.sec_logger = logging.getLogger('security')
+        self.sec_logger.setLevel(logging.INFO)
+        if not self.sec_logger.handlers:
+            h1 = logging.FileHandler(sec_file)
+            h1.setFormatter(logging.Formatter('%(message)s'))
+            self.sec_logger.addHandler(h1)
 
-    def log_event(self, event_type: str, user_id: str = None, details: dict = None, severity: str = 'INFO'):
-        """Logs a structured security event in JSON format."""
-        
-        # 3. Context Safety: Prevent crashes if called outside a Flask route (e.g., startup scripts)
+        # Access Logger
+        self.acc_logger = logging.getLogger('access')
+        self.acc_logger.setLevel(logging.INFO)
+        if not self.acc_logger.handlers:
+            h2 = logging.FileHandler(acc_file)
+            h2.setFormatter(logging.Formatter('%(message)s'))
+            self.acc_logger.addHandler(h2)
+
+    def log_event(self, event_type: str, user_id: str = None, details: dict = None, severity: str = 'INFO', log_type: str = 'security'):
         ip_addr = request.remote_addr if has_request_context() else 'SYSTEM'
         user_agent = request.headers.get('User-Agent') if has_request_context() else 'SYSTEM'
         
+        # Automatically pull user_id from Flask 'g' if not explicitly provided
+        from flask import g
+        active_user = user_id or (g.user_id if has_request_context() and getattr(g, 'user_id', None) else 'ANONYMOUS')
+
         log_entry = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'severity': severity.upper(),
             'event_type': event_type.upper(),
-            'user_id': user_id or 'ANONYMOUS',
+            'user_id': active_user,
             'ip_address': ip_addr,
             'user_agent': user_agent,
             'details': details or {}
         }
         
         json_msg = json.dumps(log_entry)
+        target_logger = self.sec_logger if log_type == 'security' else self.acc_logger
         
-        # Route to the correct logging level
         level = severity.upper()
         if level == 'CRITICAL':
-            self.logger.critical(json_msg)
+            target_logger.critical(json_msg)
         elif level == 'ERROR':
-            self.logger.error(json_msg)
+            target_logger.error(json_msg)
         elif level == 'WARNING':
-            self.logger.warning(json_msg)
+            target_logger.warning(json_msg)
         else:
-            self.logger.info(json_msg)
+            target_logger.info(json_msg)

@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-18T20:27:16.900360+00:00", "severity": "INFO", "event_type": "DATA_CREATE", "user_id": "admin", "ip_address": "127.0.0.1", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36", "details": {"file_id": "1ebcc83d725eb69e", "filename": "README.txt"}}
