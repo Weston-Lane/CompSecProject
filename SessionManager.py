@@ -17,6 +17,7 @@ class SessionManager:
 
     def _initialize(self, timeout=1800):
         self.timeout = timeout
+        self.absolute_timeout = 43200 
         self.sessions_file = 'data/sessions.json'
         # Load sessions into memory exactly once upon server start
         self.sessions = self._load_sessions()
@@ -70,6 +71,11 @@ class SessionManager:
 
         # Check for timeout
         if time.time() - session['last_activity'] > self.timeout:
+            self.destroy_session(token)
+            return None
+        
+        #if 12hr session delete session
+        if time.time() - session['created_at'] > self.absolute_timeout:
             self.destroy_session(token)
             return None
 

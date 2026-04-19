@@ -3,6 +3,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge, HTTPException
 import html 
 import os
 import os 
@@ -11,6 +12,7 @@ import io
 import re
 import filetype
 import authentication
+import json
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
 from DataBase import DataBase
@@ -99,8 +101,82 @@ def ratelimit_handler(e):
         "status": "error",
         "message": f"Rate limit exceeded: {e.description}. Please try again later."
     }), 429
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(error):
+    # 1. Log the security event
+    # (Assuming you are using the SecurityLogger from our earlier tests)
+    user_id = getattr(g, 'user_id', 'Unauthenticated User')
     
+    SecurityLogger.get_instance().log_event(
+        event_type="RESOURCE_EXHAUSTION_ATTEMPT",
+        details={
+            "action": "file_upload", 
+            "error": "Payload exceeded MAX_CONTENT_LENGTH",
+            "user_id": user_id
+        },
+        severity="WARNING", 
+        log_type="security"
+    )
+
+    # 2. Return a clean, user-friendly API response
+    return jsonify({
+        "error": "File Too Large",
+        "message": "The file you attempted to upload exceeds the maximum allowed size of 16MB."
+    }), 413
+   
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    """
+    Catches ALL standard HTTP errors (400, 404, 405, 500, etc.)
+    and converts Werkzeug's default HTML response into clean JSON.
+    """
+    # Create a generic JSON response
+    response = e.get_response()
     
+    # Replace the HTML body with a JSON payload
+    response.data = json.dumps({
+        "error": e.name,              # e.g., "Method Not Allowed"
+        "message": e.description,       # e.g., "The method is not allowed..."
+        "code": e.code                # e.g., 405
+    })
+    
+    # Force the header so the frontend knows it's JSON
+    response.content_type = "application/json"
+    
+    return response
+
+# You still need a separate one for actual Python crashes (non-HTTP errors)
+@app.errorhandler(Exception)
+def handle_generic_exception(e):
+    """
+    Catches raw Python crashes (e.g., KeyError, TypeError, Database connection lost)
+    to prevent stack traces from leaking to the client.
+    """
+    # In a real app, you would log the actual error 'e' to a secure file here!
+    # print(f"CRITICAL ERROR: {str(e)}") 
+    
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": "An unexpected error occurred. The administrators have been notified.",
+        "code": 500
+    }), 500
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "The specified HTTP method is not permitted for this endpoint."
+    }), 405
+
+# You should probably do the same for 404 errors!
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested API endpoint does not exist."
+    }), 404
+
 @app.before_request
 def load_user_session():
     """Checks the session cookie before routing the request."""
@@ -267,7 +343,12 @@ def sanitize_output(data):
 
 
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'docx', 'xlsx'}
-
+ALLOWED_MIMES = {
+    'text/plain', 
+    'application/pdf', 
+    'image/png', 
+    'image/jpeg'
+}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -282,6 +363,7 @@ def upload_file():
     
     file = request.files['document']
 
+    # EXTENSION CHECK
     if not allowed_file(file.filename):
         SecurityLogger.get_instance().log_event(
             event_type="INPUT_VALIDATION_FAILURE",
@@ -293,22 +375,46 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
+    # MIME TYPE CHECK 
+    if file.content_type not in ALLOWED_MIMES:
+        SecurityLogger.get_instance().log_event(
+            event_type="INPUT_VALIDATION_FAILURE",
+            details={"reason": "Disallowed MIME type", "mime": file.content_type},
+            severity="WARNING", log_type="security"
+        )
+        return jsonify({"error": "MIME type not allowed"}), 400
+
     # Strip directory traversal characters
     safe_path_name = secure_filename(file.filename)
     
-    #Run the string through XSS sanitization function
+    # Run the string through XSS sanitization function
     sanitized_filename = sanitize_input(safe_path_name)
     
-    # 3. Fallback for edge cases
+    # Fallback for edge cases
     if not sanitized_filename:
         sanitized_filename = "unnamed_document"
     # ----------------------------------------
 
-    # Encrypt the file
+    # Read the file from memory
     file_data = file.read()
-    # kind = filetype.guess(file_data)
-    # if kind is None or kind.extension not in ALLOWED_EXTENSIONS:
-    #     return jsonify({"error": "Spoofed file detected"}), 400
+
+    # MAGIC BYTE CHECK 
+    kind = filetype.guess(file_data)
+
+    if kind is None:
+        # filetype returns None for plain text formats. 
+        if file.content_type != 'text/plain':
+            return jsonify({"error": "Spoofed file detected: Missing signature"}), 400
+    else:
+        if kind.mime not in ALLOWED_MIMES:
+            SecurityLogger.get_instance().log_event(
+                event_type="MALICIOUS_FILE_BLOCKED",
+                details={"claimed_mime": file.content_type, "actual_mime": kind.mime},
+                severity="CRITICAL", log_type="security"
+            )
+            return jsonify({"error": f"Spoofed file detected. Found {kind.mime}"}), 400
+
+    # Encrypt the file (using the memory we already read)
     encrypted_data = storage.encrypt_bytes(file_data)
 
     # Save physical file to disk
@@ -468,9 +574,10 @@ def delete_file(file_id):
         return jsonify({"error": "Unauthorized"}), 401
 
     db = DataBase.get_instance()
-    success = db.DeleteDocument(file_id, g.user_id)
+    delete_status = db.DeleteDocument(file_id, g.user_id)
     
-    if not success:
+    # Check for failure states explicitly
+    if delete_status in ["UNAUTHORIZED", "NOT_FOUND"]:
         SecurityLogger.get_instance().log_event(
             event_type="AUTHORIZATION_FAILURE",
             details={"action": "delete_file", "file_id": file_id},
@@ -478,20 +585,24 @@ def delete_file(file_id):
         )
         return jsonify({"error": "Forbidden or file not found"}), 403
 
-    # Remove physical file
-    storage_path = os.path.join(UPLOAD_DIR, file_id)
-    if os.path.exists(storage_path):
-        try:
-            os.remove(storage_path)
-        except OSError as e:
-            print(f"Error deleting physical file {file_id}: {e}")
-            return jsonify({"error": "Database updated, but physical file deletion failed"}), 500
-        
+    if delete_status == "DELETED_ALL":
+        storage_path = os.path.join(UPLOAD_DIR, file_id)
+        if os.path.exists(storage_path):
+            try:
+                os.remove(storage_path)
+            except OSError as e:
+                print(f"Error deleting physical file {file_id}: {e}")
+                return jsonify({"error": "Database updated, but physical file deletion failed"}), 500
+            
     SecurityLogger.get_instance().log_event(
         event_type="DATA_DELETE",
-        details={"file_id": file_id},
+        details={"file_id": file_id, "status": delete_status},
         severity="INFO", log_type="access"
     )
+    
+    if delete_status == "REMOVED_SHARE":
+         return jsonify({"message": "Successfully removed your access to this shared document"}), 200
+         
     return jsonify({"message": "Document deleted successfully"}), 200
 
 @app.route('/api/download/<file_id>', methods=['GET'])
