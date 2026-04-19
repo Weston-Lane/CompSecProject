@@ -3,7 +3,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.exceptions import RequestEntityTooLarge, HTTPException
 import html 
 import os
 import os 
@@ -12,6 +12,7 @@ import io
 import re
 import filetype
 import authentication
+import json
 from SecurityLogger import SecurityLogger
 from SessionManager import SessionManager
 from DataBase import DataBase
@@ -122,8 +123,60 @@ def handle_file_too_large(error):
     return jsonify({
         "error": "File Too Large",
         "message": "The file you attempted to upload exceeds the maximum allowed size of 16MB."
-    }), 413   
+    }), 413
+   
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    """
+    Catches ALL standard HTTP errors (400, 404, 405, 500, etc.)
+    and converts Werkzeug's default HTML response into clean JSON.
+    """
+    # Create a generic JSON response
+    response = e.get_response()
     
+    # Replace the HTML body with a JSON payload
+    response.data = json.dumps({
+        "error": e.name,              # e.g., "Method Not Allowed"
+        "message": e.description,       # e.g., "The method is not allowed..."
+        "code": e.code                # e.g., 405
+    })
+    
+    # Force the header so the frontend knows it's JSON
+    response.content_type = "application/json"
+    
+    return response
+
+# You still need a separate one for actual Python crashes (non-HTTP errors)
+@app.errorhandler(Exception)
+def handle_generic_exception(e):
+    """
+    Catches raw Python crashes (e.g., KeyError, TypeError, Database connection lost)
+    to prevent stack traces from leaking to the client.
+    """
+    # In a real app, you would log the actual error 'e' to a secure file here!
+    # print(f"CRITICAL ERROR: {str(e)}") 
+    
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": "An unexpected error occurred. The administrators have been notified.",
+        "code": 500
+    }), 500
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "The specified HTTP method is not permitted for this endpoint."
+    }), 405
+
+# You should probably do the same for 404 errors!
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested API endpoint does not exist."
+    }), 404
+
 @app.before_request
 def load_user_session():
     """Checks the session cookie before routing the request."""
@@ -639,7 +692,7 @@ def get_all_users():
 if __name__ == '__main__':
 
     app.run(
-        debug=True, 
+        debug=False, 
         host='0.0.0.0', 
         port=5000, 
         ssl_context=('cert.pem', 'key.pem')
