@@ -1,1 +1,16 @@
-{}
+{
+    "mQdiAoHSz5LRMmPE2_Meqiaq2FoQ6WwxRSeVD4rSsy0": {
+        "user_id": "user2",
+        "created_at": 1776573401.1300724,
+        "last_activity": 1776573427.6388023,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "Y9E2VnjjqY4uoCKnYgAFRWxxtXAdOiJ92pgQ6sh0WXM": {
+        "user_id": "user",
+        "created_at": 1776573805.0324943,
+        "last_activity": 1776573805.0324943,
+        "ip_address": "127.0.0.1",
+        "user_agent": "PostmanRuntime/7.53.0"
+    }
+}
