@@ -19,15 +19,6 @@ from DataBase import DataBase
 from encryption_utils import storage
 from Roles import login_required, require_roles
 
-############################################################################
-#           DELETE AFTER DONE!
-#           ADMIN USER : admin
-#           ADMIN PASS: Password!123
-#           
-#           Other User Names and roles are: User, Guest 
-#           Passwords: Password!123
-#
-############################################################################
 
 load_dotenv()
 
