@@ -6,9 +6,9 @@ data/logs/
 data/sessions.json
 data/users.json
 data/
-.pem
-.key
-.env
+*.pem
+*.key
+*.env
 peek.py
 Tests/
 uploads/
