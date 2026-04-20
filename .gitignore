@@ -5,3 +5,11 @@ __pycache__/
 data/logs/
 data/sessions.json
 data/users.json
+data/
+.pem
+.key
+.env
+peek.py
+Tests/
+uploads/
+
