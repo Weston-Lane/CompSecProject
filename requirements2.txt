@@ -4,7 +4,7 @@ cffi
 cryptography
 MarkupSafe
 wrapt
-
+filetype
 # Framework updates for Python 3.14 compatibility
 Flask>=3.0.3
 Werkzeug>=3.0.3
