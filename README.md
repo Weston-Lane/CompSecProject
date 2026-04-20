@@ -30,6 +30,7 @@
     pip install -r requirements2.txt
     ```
 * **Generate Local SSL Certs**:
+  ### OPEN SSL MUST BE INSTALLED AND IN PATH ENV VARIABLE
     ```bash
     openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
     ```
@@ -42,3 +43,8 @@
     ```bash
     python app.py
     ```
+
+    # IMPORTANT NOTES:
+      * The first user created will be the admin account. This allows for easy testing for the grader.
+      * Every subsiquent created account will be a standard user.
+      * The only way to get a guest user is to demote through an admin account
