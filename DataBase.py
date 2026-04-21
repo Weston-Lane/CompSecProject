@@ -131,7 +131,7 @@ class DataBase:
             "content_type": content_type,
             "owner_id": owner_id,
             "shared_with": [], 
-            "upload_time": time.time()
+            "upload_time": time.time(),
         }
 
         # Versions Inherit Persmissions

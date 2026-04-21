@@ -137,15 +137,13 @@ def handle_http_exception(e):
     
     return response
 
-# You still need a separate one for actual Python crashes (non-HTTP errors)
+
 @app.errorhandler(Exception)
 def handle_generic_exception(e):
     """
     Catches raw Python crashes (e.g., KeyError, TypeError, Database connection lost)
     to prevent stack traces from leaking to the client.
     """
-    # In a real app, you would log the actual error 'e' to a secure file here!
-    # print(f"CRITICAL ERROR: {str(e)}") 
     
     return jsonify({
         "error": "Internal Server Error",
@@ -483,10 +481,12 @@ def view_file(file_id):
         return jsonify({"error": "File not found"}), 404
 
     # Authorization Check: Is the user the owner OR in the shared_with list?
-    is_owner = doc_meta.get('owner_id') == g.user_id
+    user = db.FindUser(g.user_id)
+    is_owner = doc_meta.get('owner_id') == g.user_id 
     is_shared = g.user_id in doc_meta.get('shared_with', [])
+    is_admin = user.role == 'admin'
 
-    if not (is_owner or is_shared):
+    if not (is_owner or is_shared or is_admin):
         SecurityLogger.get_instance().log_event(
             event_type="AUTHORIZATION_FAILURE",
             details={"action": "read_file", "file_id": file_id},
