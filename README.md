@@ -1,5 +1,5 @@
 # CompSecProject
-## Documentation is in the Docs/ and docs/ folders
+## ----Documentation is in the Docs/ and docs/ folders----
 ## Dependencies
 
 * **Create a virtual environment** (if not done already):
